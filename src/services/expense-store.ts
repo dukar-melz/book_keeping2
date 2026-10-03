@@ -68,21 +68,31 @@ async function saveExpenses(expenses: Expense[]) {
   await writeFile(memoryPath, JSON.stringify(expenses, null, 2), 'utf-8');
 }
 
-/** Wrap a value in double quotes so PostgREST treats it as a literal. */
-function lit(value: string): string {
-  return `"${value.replace(/"/g, '""')}"`;
+/** Percent-encode a value for a PostgREST filter.
+ *
+ * This used to wrap values in double quotes, but PostgREST does not strip them:
+ * uuid filters failed with 22P02 ("invalid input syntax for type uuid") and text
+ * filters silently matched nothing because it compared against a literal
+ * `"software"`. Encoding also stops a vendor name containing `&` from injecting
+ * extra filter parameters. */
+function val(value: string): string {
+  return encodeURIComponent(value);
 }
 
 function buildQuery(filter?: ExpenseFilter): string {
   const parts: string[] = [];
-  if (filter?.category) parts.push(`category=eq.${lit(filter.category)}`);
-  if (filter?.vendor) parts.push(`vendor=ilike.${lit(`%${filter.vendor}%`)}`);
-  if (filter?.start_date) parts.push(`date=gte.${filter.start_date}`);
-  if (filter?.end_date) parts.push(`date=lte.${filter.end_date}`);
-  if (filter?.currency) parts.push(`currency=eq.${lit(filter.currency)}`);
+  if (filter?.category) parts.push(`category=eq.${val(filter.category)}`);
+  if (filter?.vendor) parts.push(`vendor=ilike.${val(`%${filter.vendor}%`)}`);
+  if (filter?.start_date) parts.push(`date=gte.${val(filter.start_date)}`);
+  if (filter?.end_date) parts.push(`date=lte.${val(filter.end_date)}`);
+  if (filter?.currency) parts.push(`currency=eq.${val(filter.currency)}`);
   if (filter?.tags && filter.tags.length > 0) {
-    const arr = `{${filter.tags.map(lit).join(',')}}`;
-    parts.push(`tags=ov.${arr}`);
+    // Braces and inner quotes are genuine array syntax, so encode the whole
+    // list in one go and let PostgREST decode before it parses the array.
+    const arr = `{${filter.tags
+      .map((t) => `"${t.replace(/\\/g, '\\\\').replace(/"/g, '\\"')}"`)
+      .join(',')}}`;
+    parts.push(`tags=ov.${encodeURIComponent(arr)}`);
   }
   parts.push('order=date.desc,created_at.desc');
   return `?${parts.join('&')}`;
@@ -110,7 +120,7 @@ export async function getAll(filter?: ExpenseFilter): Promise<Expense[]> {
 
 export async function getById(id: string): Promise<Expense | undefined> {
   if (supabaseConfigured()) {
-    const rows = await selectRows<Expense>(TABLE, `?id=eq.${lit(id)}&limit=1`);
+    const rows = await selectRows<Expense>(TABLE, `?id=eq.${val(id)}&limit=1`);
     return rows[0];
   }
   const expenses = await loadExpenses();
@@ -155,7 +165,7 @@ export async function update(id: string, updates: Partial<Expense>): Promise<Exp
   const patch = { ...updates, updated_at: new Date().toISOString() };
 
   if (supabaseConfigured()) {
-    const rows = await updateRow<Expense>(TABLE, `?id=eq.${lit(id)}`, patch);
+    const rows = await updateRow<Expense>(TABLE, `?id=eq.${val(id)}`, patch);
     return rows[0];
   }
 
@@ -171,7 +181,7 @@ export async function remove(id: string): Promise<boolean> {
   if (supabaseConfigured()) {
     const existing = await getById(id);
     if (!existing) return false;
-    await deleteRows(TABLE, `?id=eq.${lit(id)}`);
+    await deleteRows(TABLE, `?id=eq.${val(id)}`);
     return true;
   }
 

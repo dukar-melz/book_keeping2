@@ -50,13 +50,15 @@ async function saveFacts(facts: Fact[]) {
   await writeFile(memoryPath, JSON.stringify(facts, null, 2), 'utf-8');
 }
 
-function lit(value: string): string {
-  return `"${value.replace(/"/g, '""')}"`;
+/** Percent-encode for PostgREST; its double-quote "literal" syntax is not
+ * stripped and made every key lookup miss. */
+function val(value: string): string {
+  return encodeURIComponent(value);
 }
 
 export async function getFact(key: string): Promise<Fact | undefined> {
   if (supabaseConfigured()) {
-    const rows = await selectRows<Fact>(TABLE, `?key=eq.${lit(key)}&limit=1`);
+    const rows = await selectRows<Fact>(TABLE, `?key=eq.${val(key)}&limit=1`);
     return rows[0];
   }
   const facts = await loadFacts();
@@ -83,7 +85,7 @@ export async function setFact(
     if (existing) {
       const rows = await updateRow<Fact>(
         TABLE,
-        `?key=eq.${lit(key)}`,
+        `?key=eq.${val(key)}`,
         { value, source, notes }
       );
       return rows[0] ?? fact;
