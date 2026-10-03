@@ -213,6 +213,15 @@ body {
 .upload-zone p { font-size: 12px; color: var(--text-muted); }
 .upload-zone small { font-size: 10px; color: var(--text-dim); display: block; margin-top: 6px; }
 
+/* ── CHAT ── */
+.chat-msg { padding: 10px 14px; border-radius: 10px; font-size: 13px; line-height: 1.5; white-space: pre-wrap; max-width: 85%; }
+.chat-bot { background: var(--surface-2); border: 1px solid var(--border); align-self: flex-start; }
+.chat-user { background: linear-gradient(135deg, #ec4899, #a855f7); color: #fff; align-self: flex-end; }
+.chat-msg.chat-warn { border-color: var(--green); }
+.chat-chip { padding: 5px 10px; font-size: 11px; border-radius: 999px; background: var(--surface-2); border: 1px solid var(--border); color: var(--text-muted); cursor: pointer; font-family: inherit; }
+.chat-chip:hover { border-color: #ec4899; color: var(--text); }
+.chat-typing { color: var(--text-dim); font-style: italic; }
+
 /* ── FILTERS ── */
 .filters { display: flex; gap: 10px; flex-wrap: wrap; align-items: center; }
 .filters .form-input, .filters .form-select { padding: 7px 10px; font-size: 11px; max-width: 170px; background: var(--surface-2); }
@@ -302,6 +311,23 @@ tbody tr:hover { background: rgba(236,72,153,.02); }
 
 <div class="container">
   <div class="stats" id="stats"></div>
+
+  <div class="card" style="grid-column:1/-1">
+    <div class="card-header">
+      <h2>ASK THE ASSISTANT</h2>
+      <span class="filter-count" id="chatHint">TYPE AN EXPENSE OR A QUESTION</span>
+    </div>
+    <div class="card-body">
+      <div id="chatLog" style="display:flex;flex-direction:column;gap:10px;max-height:340px;overflow-y:auto;margin-bottom:12px">
+        <div class="chat-msg chat-bot">Tell me an expense like "spent $50 at Starbucks for coffee", or ask "what did I spend on software last month?".</div>
+      </div>
+      <div id="chatChips" style="display:flex;flex-wrap:wrap;gap:6px;margin-bottom:10px"></div>
+      <form id="chatForm" style="display:flex;gap:8px">
+        <input class="form-input" id="chatInput" placeholder="spent $50 at Starbucks for coffee" autocomplete="off" style="flex:1">
+        <button class="btn btn-primary" id="chatSend" type="submit">SEND</button>
+      </form>
+    </div>
+  </div>
 
   <div class="card">
     <div class="card-header"><h2>+ LOG EXPENSE</h2></div>
@@ -472,6 +498,35 @@ document.getElementById('applyFilters').addEventListener('click',renderTable);
 document.getElementById('clearFilters').addEventListener('click',()=>{document.getElementById('filterVendor').value='';document.getElementById('filterCategory').value='';document.getElementById('filterStart').value='';document.getElementById('filterEnd').value='';renderTable()});
 document.getElementById('exportBtn').addEventListener('click',()=>{const p=new URLSearchParams(),cat=document.getElementById('filterCategory').value;if(cat)p.set('category',cat);window.open(API+'/reports/export?'+p.toString())});
 
+/* ── CHAT ── */
+const chatLog=document.getElementById('chatLog'),chatInput=document.getElementById('chatInput'),chatSend=document.getElementById('chatSend');
+function chatAdd(text,who,warn){const d=document.createElement('div');d.className=`chat-msg chat-${who}`+(warn?' chat-warn':'');d.textContent=text;chatLog.appendChild(d);chatLog.scrollTop=chatLog.scrollHeight;return d}
+const CHIPS=['spent $50 at Starbucks for coffee','bought $30 of printer ink at Staples','what did I spend in total?','what was my biggest expense?','how much did I spend on meals last month?'];
+for(const c of CHIPS){const b=document.createElement('button');b.className='chat-chip';b.textContent=c;b.addEventListener('click',()=>{chatInput.value=c;chatInput.focus()});document.getElementById('chatChips').appendChild(b)}
+document.getElementById('chatForm').addEventListener('submit',async e=>{
+  e.preventDefault();
+  const msg=chatInput.value.trim();
+  if(!msg)return;
+  chatAdd(msg,'user');
+  chatInput.value='';
+  chatSend.disabled=true;
+  const pending=chatAdd('Thinking…','bot');
+  pending.classList.add('chat-typing');
+  try{
+    const r=await api('/chat',{method:'POST',body:JSON.stringify({message:msg}),headers:{'Content-Type':'application/json'}});
+    pending.remove();
+    chatAdd(r.reply,'bot',r.degraded);
+    if(r.logged)load();
+  }catch(err){
+    pending.remove();
+    chatAdd(err.message,'bot',true);
+  }finally{
+    chatSend.disabled=false;
+    chatInput.focus();
+  }
+});
+
+api('/chat/status').then(s=>{if(!s.configured)document.getElementById('chatHint').textContent='ASSISTANT NOT CONFIGURED — USE THE FORM BELOW'}).catch(()=>{});
 load();
 </script>
 </body>

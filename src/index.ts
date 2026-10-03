@@ -8,6 +8,7 @@ import { errorHandler } from './middleware/error.js';
 import expenseRoutes from './routes/expenses.js';
 import receiptRoutes from './routes/receipts.js';
 import reportRoutes from './routes/reports.js';
+import chatRoutes from './routes/chat.js';
 import { supabaseConfigured, probe } from './services/supabase.js';
 
 const agentHome = process.env.PI_CODING_AGENT_DIR || join(import.meta.dirname, '..', 'agent-home');
@@ -37,6 +38,7 @@ app.use(express.json());
 app.use('/expenses', expenseRoutes);
 app.use('/receipts', receiptRoutes);
 app.use('/reports', reportRoutes);
+app.use('/chat', chatRoutes);
 
 app.get('/health', async (_req, res) => {
   const storage = supabaseConfigured() ? 'supabase' : 'json-files';
