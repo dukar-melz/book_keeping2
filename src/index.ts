@@ -1,6 +1,7 @@
 import 'dotenv/config';
 import express from 'express';
 import { join } from 'node:path';
+import { existsSync } from 'node:fs';
 import { initExpenseStore } from './services/expense-store.js';
 import { initFactStore } from './services/fact-store.js';
 import { errorHandler } from './middleware/error.js';
@@ -15,10 +16,22 @@ const memoryDir = join(agentHome, 'memory');
 initExpenseStore(join(memoryDir, 'expenses.json'));
 initFactStore(join(memoryDir, 'facts.json'));
 
+/** Vercel bundles sources into /var/task, so the directory that held
+ * public/ at build time is not where it lives at runtime. Probe candidates. */
+function resolvePublicDir(): string {
+  const candidates = [
+    join(import.meta.dirname, '..', 'public'),
+    join(import.meta.dirname, 'public'),
+    join(process.cwd(), 'public'),
+    '/var/task/public',
+  ];
+  return candidates.find(dir => existsSync(join(dir, 'index.html'))) ?? candidates[0]!;
+}
+
 const app = express();
 const PORT = parseInt(process.env.PORT || '3000', 10);
 
-const publicDir = join(import.meta.dirname, '..', 'public');
+const publicDir = resolvePublicDir();
 app.use(express.static(publicDir));
 app.use(express.json());
 app.use('/expenses', expenseRoutes);
