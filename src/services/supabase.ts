@@ -28,6 +28,39 @@ async function request<T>(path: string, init: RequestInit = {}): Promise<T> {
   return (text ? JSON.parse(text) : undefined) as T;
 }
 
+export async function probe(): Promise<{
+  reachable: boolean;
+  project: string;
+  tables: Record<string, string>;
+  error?: string;
+}> {
+  const project = (() => {
+    try {
+      return new URL(SUPA_URL).hostname.split('.')[0] ?? '';
+    } catch {
+      return '';
+    }
+  })();
+
+  const tables: Record<string, string> = {};
+  for (const table of ['expenses', 'facts']) {
+    try {
+      await selectRows(table, '?select=id&limit=1');
+      tables[table] = 'ok';
+    } catch (err) {
+      tables[table] = err instanceof Error ? err.message : String(err);
+    }
+  }
+
+  const reachable = Object.values(tables).some((v) => v === 'ok');
+  return {
+    reachable,
+    project,
+    tables,
+    error: reachable ? undefined : 'no expected table is queryable',
+  };
+}
+
 export function supabaseTable(table: string, query = ''): string {
   return `/rest/v1/${table}${query}`;
 }
