@@ -6,3 +6,4 @@ memory/
 .vercel
 *.log
 .DS_Store
+.vercel

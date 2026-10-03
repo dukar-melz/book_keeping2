@@ -45,8 +45,23 @@ function makeUpload() {
     });
   }
 
-  if (!existsSync(RECEIPT_DIR)) {
-    mkdirSync(RECEIPT_DIR, { recursive: true });
+  // On a read-only filesystem (Vercel) we cannot spool uploads to disk, so
+  // fall back to buffering in memory rather than failing at import time.
+  let diskAvailable = true;
+  try {
+    if (!existsSync(RECEIPT_DIR)) {
+      mkdirSync(RECEIPT_DIR, { recursive: true });
+    }
+  } catch {
+    diskAvailable = false;
+  }
+
+  if (!diskAvailable) {
+    return multer({
+      storage: multer.memoryStorage(),
+      limits: { fileSize: MAX_BYTES },
+      fileFilter,
+    });
   }
 
   return multer({
@@ -83,7 +98,7 @@ router.post('/', upload.single('receipt'), async (req: Request, res: Response, n
       storedPath = `${randomUUID()}.${ext}`;
       await uploadToBucket(BUCKET, storedPath, file.buffer, file.mimetype);
     } else {
-      storedPath = file.filename;
+      storedPath = file.filename ?? '';
     }
 
     const { amount_usd, rate } = convertToUsd(amount, metadata.currency || 'USD');

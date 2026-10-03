@@ -1,5 +1,5 @@
-import { readFile, writeFile, mkdir } from 'node:fs/promises';
-import { existsSync } from 'node:fs';
+import { writeFile, readFile } from 'node:fs/promises';
+import { mkdirSync, existsSync, writeFileSync } from 'node:fs';
 import { dirname } from 'node:path';
 import { randomUUID } from 'node:crypto';
 import type { Expense, CreateExpenseInput, ExpenseFilter } from '../types/expense.js';
@@ -14,10 +14,28 @@ import {
 const TABLE = 'expenses';
 
 let memoryPath: string;
+let diskAvailable = true;
 
 export function initExpenseStore(path: string) {
   memoryPath = path;
-  if (!supabaseConfigured()) ensureFile();
+  diskAvailable = supabaseConfigured() ? false : ensureDisk();
+}
+
+/** Create the JSON store up front. Returns false on a read-only filesystem. */
+function ensureDisk(): boolean {
+  if (!memoryPath) return false;
+  try {
+    const dir = dirname(memoryPath);
+    if (!existsSync(dir)) {
+      mkdirSync(dir, { recursive: true });
+    }
+    if (!existsSync(memoryPath)) {
+      writeFileSync(memoryPath, '[]', 'utf-8');
+    }
+    return true;
+  } catch {
+    return false;
+  }
 }
 
 function getDefaults(): Omit<Expense, 'id' | 'vendor' | 'amount' | 'created_at' | 'updated_at'> {
@@ -36,19 +54,12 @@ function getDefaults(): Omit<Expense, 'id' | 'vendor' | 'amount' | 'created_at' 
   };
 }
 
-async function ensureFile() {
-  if (!memoryPath) return;
-  const dir = dirname(memoryPath);
-  if (!existsSync(dir)) {
-    await mkdir(dir, { recursive: true });
-  }
-  if (!existsSync(memoryPath)) {
-    await writeFile(memoryPath, '[]', 'utf-8');
-  }
-}
-
 async function loadExpenses(): Promise<Expense[]> {
-  await ensureFile();
+  if (!diskAvailable) {
+    throw new Error(
+      'No writable storage. Set SUPABASE_URL and SUPABASE_SERVICE_ROLE_KEY on this deployment.'
+    );
+  }
   const raw = await readFile(memoryPath, 'utf-8');
   return JSON.parse(raw) as Expense[];
 }

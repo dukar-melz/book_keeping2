@@ -1,5 +1,5 @@
-import { readFile, writeFile, mkdir } from 'node:fs/promises';
-import { existsSync } from 'node:fs';
+import { writeFile, readFile } from 'node:fs/promises';
+import { mkdirSync, existsSync, writeFileSync } from 'node:fs';
 import { dirname } from 'node:path';
 import { randomUUID } from 'node:crypto';
 import type { Fact } from '../types/expense.js';
@@ -13,25 +13,35 @@ import {
 const TABLE = 'facts';
 
 let memoryPath: string;
+let diskAvailable = true;
 
 export function initFactStore(path: string) {
   memoryPath = path;
-  if (!supabaseConfigured()) ensureFile();
+  diskAvailable = supabaseConfigured() ? false : ensureDisk();
 }
 
-async function ensureFile() {
-  if (!memoryPath) return;
-  const dir = dirname(memoryPath);
-  if (!existsSync(dir)) {
-    await mkdir(dir, { recursive: true });
-  }
-  if (!existsSync(memoryPath)) {
-    await writeFile(memoryPath, '[]', 'utf-8');
+function ensureDisk(): boolean {
+  if (!memoryPath) return false;
+  try {
+    const dir = dirname(memoryPath);
+    if (!existsSync(dir)) {
+      mkdirSync(dir, { recursive: true });
+    }
+    if (!existsSync(memoryPath)) {
+      writeFileSync(memoryPath, '[]', 'utf-8');
+    }
+    return true;
+  } catch {
+    return false;
   }
 }
 
 async function loadFacts(): Promise<Fact[]> {
-  await ensureFile();
+  if (!diskAvailable) {
+    throw new Error(
+      'No writable storage. Set SUPABASE_URL and SUPABASE_SERVICE_ROLE_KEY on this deployment.'
+    );
+  }
   const raw = await readFile(memoryPath, 'utf-8');
   return JSON.parse(raw) as Fact[];
 }
