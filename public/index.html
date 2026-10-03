@@ -1,0 +1,478 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>BOOKKEEPING AGENT</title>
+<link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<style>
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+:root {
+  --bg: #050508;
+  --surface: rgba(14,14,24,.85);
+  --surface-2: rgba(22,22,40,.6);
+  --border: rgba(255,255,255,.06);
+  --border-active: rgba(236,72,153,.4);
+  --text: #eeeef5;
+  --text-muted: #6b6b8a;
+  --text-dim: #40405a;
+  --pink: #ec4899;
+  --pink-glow: rgba(236,72,153,.3);
+  --purple: #a855f7;
+  --cyan: #22d3ee;
+  --green: #34d399;
+  --gold: #fbbf24;
+  --red: #fb7185;
+  --font: 'JetBrains Mono', monospace;
+}
+
+body {
+  font-family: var(--font);
+  background: var(--bg);
+  color: var(--text);
+  min-height: 100vh;
+  overflow-x: hidden;
+}
+
+/* ── ANIMATED BG ── */
+.bg-grid {
+  position: fixed; inset: 0; z-index: 0;
+  background-image:
+    linear-gradient(rgba(255,255,255,.02) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(255,255,255,.02) 1px, transparent 1px);
+  background-size: 60px 60px;
+  pointer-events: none;
+}
+.bg-orb {
+  position: fixed; border-radius: 50%; filter: blur(120px); pointer-events: none; z-index: 0;
+  animation: orbFloat 12s ease-in-out infinite;
+}
+.bg-orb:nth-child(1) { width: 600px; height: 600px; background: rgba(236,72,153,.08); top: -200px; left: -200px; }
+.bg-orb:nth-child(2) { width: 500px; height: 500px; background: rgba(168,85,247,.06); bottom: -150px; right: -150px; animation-delay: -4s; }
+.bg-orb:nth-child(3) { width: 400px; height: 400px; background: rgba(34,211,238,.04); top: 40%; left: 60%; animation-delay: -8s; }
+@keyframes orbFloat {
+  0%, 100% { transform: translate(0, 0) scale(1); }
+  33% { transform: translate(30px, -40px) scale(1.05); }
+  66% { transform: translate(-20px, 20px) scale(.95); }
+}
+
+/* ── TOPBAR ── */
+.topbar {
+  position: sticky; top: 0; z-index: 100;
+  height: 72px;
+  display: flex; align-items: center; justify-content: space-between;
+  padding: 0 36px;
+  background: rgba(5,5,8,.7);
+  backdrop-filter: blur(24px);
+  border-bottom: 1px solid var(--border);
+}
+.topbar::after {
+  content: ''; position: absolute; bottom: 0; left: 0; right: 0; height: 1px;
+  background: linear-gradient(90deg, transparent, var(--pink-glow), var(--pink), var(--purple), var(--cyan), transparent);
+  background-size: 200% 100%;
+  animation: rainbowLine 6s linear infinite;
+}
+@keyframes rainbowLine { 0% { background-position: 0% 0; } 100% { background-position: 200% 0; } }
+.topbar-left { display: flex; align-items: center; gap: 16px; }
+.topbar-logo {
+  width: 44px; height: 44px;
+  background: linear-gradient(135deg, #ec4899, #a855f7);
+  border-radius: 14px;
+  display: flex; align-items: center; justify-content: center;
+  font-weight: 800; font-size: 18px; color: #fff;
+  position: relative;
+  animation: logospin 8s linear infinite;
+}
+@keyframes logospin { 0% { filter: hue-rotate(0deg); } 100% { filter: hue-rotate(360deg); } }
+.topbar-logo::before {
+  content: ''; position: absolute; inset: -3px;
+  border-radius: 17px;
+  background: conic-gradient(from 0deg, transparent, var(--pink), var(--purple), var(--cyan), transparent);
+  z-index: -1;
+  animation: conicSpin 3s linear infinite;
+}
+@keyframes conicSpin { to { transform: rotate(360deg); } }
+.topbar h1 {
+  font-size: 18px; font-weight: 700; letter-spacing: 1px;
+  background: linear-gradient(90deg, #fff 30%, var(--pink), var(--purple));
+  -webkit-background-clip: text; -webkit-text-fill-color: transparent;
+}
+.topbar-badge {
+  font-size: 9px; font-weight: 600; letter-spacing: 2px; text-transform: uppercase;
+  padding: 4px 12px; border-radius: 4px;
+  background: rgba(236,72,153,.1); color: var(--pink);
+  border: 1px solid rgba(236,72,153,.15);
+}
+.topbar-right { display: flex; align-items: center; gap: 12px; }
+.live-dot {
+  display: flex; align-items: center; gap: 6px;
+  font-size: 11px; font-weight: 500; color: var(--text-muted);
+  letter-spacing: .5px;
+}
+.live-dot::before {
+  content: ''; width: 6px; height: 6px; border-radius: 50%;
+  background: var(--green); box-shadow: 0 0 12px rgba(52,211,153,.6);
+  animation: livePulse 1.5s ease-in-out infinite;
+}
+@keyframes livePulse { 0%,100%{opacity:1;box-shadow:0 0 12px rgba(52,211,153,.6)} 50%{opacity:.3;box-shadow:0 0 4px rgba(52,211,153,.2)} }
+
+/* ── LAYOUT ── */
+.container { position: relative; z-index: 1; max-width: 1360px; margin: 0 auto; padding: 32px; display: grid; gap: 24px; grid-template-columns: 1fr 1fr; }
+
+/* ── STATS ── */
+.stats { grid-column: 1/-1; display: grid; grid-template-columns: repeat(4,1fr); gap: 16px; }
+.stat-card {
+  background: var(--surface); border: 1px solid var(--border);
+  border-radius: 12px; padding: 20px 24px;
+  position: relative; overflow: hidden;
+  backdrop-filter: blur(12px);
+  transition: background .3s, border-color .3s, transform .2s;
+}
+.stat-card:hover { background: rgba(22,22,40,.9); border-color: var(--border-active); transform: translateY(-2px); }
+.stat-card-glow {
+  position: absolute; top: 0; left: 50%; transform: translateX(-50%);
+  width: 80%; height: 1px;
+  background: linear-gradient(90deg, transparent, var(--pink-glow), transparent);
+  opacity: 0; transition: opacity .4s;
+}
+.stat-card:hover .stat-card-glow { opacity: 1; }
+.stat-icon { font-size: 22px; margin-bottom: 14px; display: block; }
+.stat-label { font-size: 10px; font-weight: 600; letter-spacing: 1.5px; text-transform: uppercase; color: var(--text-dim); margin-bottom: 6px; }
+.stat-value { font-size: 28px; font-weight: 700; letter-spacing: -.5px; }
+.stat-sub { font-size: 11px; color: var(--text-muted); margin-top: 4px; }
+
+/* ── CARDS ── */
+.card {
+  background: var(--surface); border: 1px solid var(--border);
+  border-radius: 16px; overflow: hidden;
+  backdrop-filter: blur(12px);
+  transition: border-color .3s, background .3s;
+}
+.card:hover { border-color: var(--border-active); }
+.card-header {
+  padding: 18px 24px;
+  border-bottom: 1px solid var(--border);
+  display: flex; align-items: center; justify-content: space-between;
+}
+.card-header h2 { font-size: 11px; font-weight: 600; letter-spacing: 2px; text-transform: uppercase; color: var(--text-muted); display: flex; align-items: center; gap: 8px; }
+.card-body { padding: 20px 24px; }
+
+/* ── FORMS ── */
+.form-group { margin-bottom: 16px; }
+.form-label { display: block; font-size: 10px; font-weight: 600; letter-spacing: 1px; text-transform: uppercase; color: var(--text-dim); margin-bottom: 6px; }
+.form-row { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; }
+.form-input, .form-select, .form-textarea {
+  width: 100%; padding: 10px 14px;
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  font-size: 13px; font-family: var(--font); color: var(--text);
+  background: var(--surface-2);
+  transition: all .25s; outline: none;
+}
+.form-input:focus, .form-select:focus, .form-textarea:focus {
+  border-color: var(--pink);
+  box-shadow: 0 0 0 1px rgba(236,72,153,.15), 0 0 25px rgba(236,72,153,.05);
+}
+.form-input::placeholder, .form-textarea::placeholder { color: var(--text-dim); }
+.form-select { cursor: pointer; appearance: none; background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='10' viewBox='0 0 10 10'%3E%3Cpath fill='%236b6b8a' d='M5 7L1 3h8z'/%3E%3C/svg%3E"); background-repeat: no-repeat; background-position: right 14px center; }
+.form-textarea { resize: vertical; min-height: 60px; }
+
+/* ── BUTTONS ── */
+.btn {
+  display: inline-flex; align-items: center; justify-content: center; gap: 8px;
+  padding: 10px 20px; border: none; border-radius: 10px;
+  font-size: 12px; font-weight: 600; font-family: var(--font);
+  cursor: pointer; transition: all .2s; text-transform: uppercase; letter-spacing: 1px;
+  position: relative; overflow: hidden;
+}
+.btn-primary {
+  background: linear-gradient(135deg, #ec4899, #a855f7);
+  color: #fff;
+}
+.btn-primary:hover { transform: translateY(-1px); filter: brightness(1.15); }
+.btn-primary:active { transform: translateY(0); }
+.btn-success { background: var(--green); color: #050508; }
+.btn-success:hover { filter: brightness(1.15); }
+.btn-ghost { background: transparent; color: var(--text-muted); border: 1px solid var(--border); }
+.btn-ghost:hover { background: var(--surface-2); border-color: var(--text-dim); }
+.btn-sm { padding: 7px 14px; font-size: 10px; }
+.btn-block { width: 100%; }
+.btn-icon { width: 34px; height: 34px; padding: 0; border-radius: 8px; display: inline-flex; align-items: center; justify-content: center; background: none; border: 1px solid transparent; cursor: pointer; color: var(--text-dim); transition: all .2s; font-size: 13px; }
+.btn-icon:hover { background: rgba(251,113,133,.08); color: var(--red); border-color: rgba(251,113,133,.15); }
+
+/* ── UPLOAD ── */
+.upload-zone {
+  border: 2px dashed var(--border); border-radius: 12px;
+  padding: 36px 20px; text-align: center; cursor: pointer;
+  transition: all .3s; margin-bottom: 16px;
+  background: var(--surface-2);
+}
+.upload-zone:hover, .upload-zone.dragover { border-color: var(--pink); background: rgba(236,72,153,.04); }
+.upload-zone-icon { font-size: 32px; margin-bottom: 10px; }
+.upload-zone p { font-size: 12px; color: var(--text-muted); }
+.upload-zone small { font-size: 10px; color: var(--text-dim); display: block; margin-top: 6px; }
+
+/* ── FILTERS ── */
+.filters { display: flex; gap: 10px; flex-wrap: wrap; align-items: center; }
+.filters .form-input, .filters .form-select { padding: 7px 10px; font-size: 11px; max-width: 170px; background: var(--surface-2); }
+.filter-count { font-size: 11px; color: var(--text-muted); letter-spacing: .5px; }
+
+/* ── TABLE ── */
+.table-wrap { overflow-x: auto; }
+table { width: 100%; border-collapse: collapse; font-size: 13px; }
+thead th {
+  text-align: left; padding: 12px 16px;
+  font-size: 10px; font-weight: 600; letter-spacing: 1.5px; text-transform: uppercase;
+  color: var(--text-dim);
+  background: rgba(22,22,40,.4);
+  border-bottom: 1px solid var(--border);
+}
+tbody td { padding: 14px 16px; border-bottom: 1px solid var(--border); vertical-align: middle; }
+tbody tr:last-child td { border-bottom: none; }
+tbody tr { transition: background .15s; }
+tbody tr:hover { background: rgba(236,72,153,.02); }
+.vendor-cell { font-weight: 600; color: #fff; }
+.desc-cell { color: var(--text-muted); font-size: 12px; }
+.amount-cell { font-weight: 600; text-align: right; font-variant-numeric: tabular-nums; }
+.amount-usd { color: var(--text-dim); font-size: 11px; font-weight: 400; }
+.tag {
+  display: inline-block; font-size: 10px; font-weight: 600;
+  padding: 3px 10px; border-radius: 4px;
+  letter-spacing: .5px;
+}
+.tag-meals { background: rgba(251,191,36,.08); color: var(--gold); }
+.tag-transport { background: rgba(34,211,238,.06); color: var(--cyan); }
+.tag-software { background: rgba(168,85,247,.08); color: var(--purple); }
+.tag-rent { background: rgba(251,113,133,.06); color: var(--red); }
+.tag-supplies { background: rgba(52,211,153,.06); color: var(--green); }
+.tag-office { background: rgba(236,72,153,.06); color: var(--pink); }
+.tag-other { background: var(--surface-2); color: var(--text-muted); }
+
+/* ── EMPTY ── */
+.empty-state { text-align: center; padding: 80px 20px; }
+.empty-state-icon { font-size: 48px; margin-bottom: 16px; opacity: .4; }
+.empty-state h3 { font-size: 16px; font-weight: 600; margin-bottom: 6px; }
+.empty-state p { font-size: 13px; color: var(--text-muted); }
+
+/* ── TOAST ── */
+.toast-container { position: fixed; bottom: 24px; right: 24px; display: flex; flex-direction: column; gap: 8px; z-index: 1000; }
+.toast {
+  padding: 12px 20px; border-radius: 8px; color: #fff;
+  font-size: 12px; font-weight: 500; font-family: var(--font);
+  backdrop-filter: blur(20px); letter-spacing: .5px;
+  animation: tIn .35s cubic-bezier(.16,1,.3,1); display: flex; align-items: center; gap: 10px;
+  max-width: 380px; border: 1px solid rgba(255,255,255,.04);
+}
+.toast-success { background: rgba(52,211,153,.12); color: var(--green); border-color: rgba(52,211,153,.15); }
+.toast-error { background: rgba(251,113,133,.12); color: var(--red); border-color: rgba(251,113,133,.15); }
+@keyframes tIn { from { transform: translateY(16px) scale(.96); opacity: 0; } to { transform: translateY(0) scale(1); opacity: 1; } }
+
+/* ── SCROLLBAR ── */
+::-webkit-scrollbar { width: 6px; }
+::-webkit-scrollbar-track { background: transparent; }
+::-webkit-scrollbar-thumb { background: var(--text-dim); border-radius: 3px; }
+::-webkit-scrollbar-thumb:hover { background: var(--text-muted); }
+
+/* ── RESPONSIVE ── */
+@media (max-width:1024px) { .container{grid-template-columns:1fr;padding:20px} .topbar{padding:0 20px} .topbar-badge{display:none} }
+@media (max-width:768px) { .topbar{height:64px;padding:0 16px} .topbar h1{font-size:14px} .topbar-logo{width:36px;height:36px;font-size:15px} .stats{gap:12px} .stat-value{font-size:24px} .form-row{grid-template-columns:1fr;gap:0} .filters .form-input,.filters .form-select{max-width:100%;flex:1} .table-wrap table{min-width:600px} }
+@media (max-width:640px) { .container{padding:14px;gap:16px} .topbar{height:56px;padding:0 12px} .topbar-left{gap:10px} .topbar-logo{width:32px;height:32px;font-size:13px} .topbar h1{font-size:13px} .topbar-right{gap:6px} .live-dot{display:none} .stats{grid-template-columns:1fr 1fr;gap:10px} .stat-card{padding:14px} .stat-value{font-size:20px} .card-header{padding:14px 16px} .card-body{padding:14px 16px} .form-group{margin-bottom:12px} .form-input,.form-select,.form-textarea{padding:8px 12px;font-size:12px} .btn{padding:8px 16px;font-size:11px} .btn-sm{padding:6px 12px;font-size:10px} .upload-zone{padding:24px 16px} thead th,tbody td{padding:10px 12px;font-size:11px} .vendor-cell{font-size:12px} .btn-icon{width:28px;height:28px;font-size:12px} .toast-container{left:12px;right:12px;bottom:12px} .toast{font-size:11px;padding:10px 14px;max-width:100%} }
+@media (max-width:420px) { .container{padding:10px;gap:12px} .topbar{height:50px;padding:0 8px} .topbar-logo{width:28px;height:28px;font-size:11px} .topbar h1{font-size:11px} .stats{gap:6px} .stat-card{padding:10px} .stat-value{font-size:16px} .card-header{padding:10px 12px} .card-body{padding:10px 12px} }
+</style>
+</head>
+<body>
+
+<div class="bg-grid"></div>
+<div class="bg-orb"></div>
+<div class="bg-orb"></div>
+<div class="bg-orb"></div>
+
+<div class="topbar">
+  <div class="topbar-left">
+    <div class="topbar-logo">B</div>
+    <h1>BOOKKEEPING</h1>
+    <span class="topbar-badge">v1.0.0</span>
+  </div>
+  <div class="topbar-right">
+    <span class="live-dot">LIVE</span>
+    <button class="btn btn-success btn-sm" id="exportBtn">EXPORT</button>
+  </div>
+</div>
+
+<div class="container">
+  <div class="stats" id="stats"></div>
+
+  <div class="card">
+    <div class="card-header"><h2>+ LOG EXPENSE</h2></div>
+    <div class="card-body">
+      <form id="expenseForm">
+        <div class="form-row">
+          <div class="form-group">
+            <label class="form-label">VENDOR</label>
+            <input class="form-input" name="vendor" required placeholder="Starbucks">
+          </div>
+          <div class="form-group">
+            <label class="form-label">AMOUNT</label>
+            <input class="form-input" name="amount" type="number" step="0.01" required placeholder="0.00">
+          </div>
+        </div>
+        <div class="form-row">
+          <div class="form-group">
+            <label class="form-label">CATEGORY</label>
+            <select class="form-select" name="category">
+              <option>Office</option><option>Meals & Entertainment</option><option>Transportation</option>
+              <option>Software</option><option>Rent</option><option>Supplies</option><option>Other</option>
+            </select>
+          </div>
+          <div class="form-group">
+            <label class="form-label">CURRENCY</label>
+            <select class="form-select" name="currency">
+              <option value="USD">USD</option><option value="EUR">EUR</option><option value="GBP">GBP</option>
+              <option value="JPY">JPY</option><option value="CAD">CAD</option><option value="AUD">AUD</option>
+              <option value="CHF">CHF</option><option value="INR">INR</option><option value="MXN">MXN</option>
+              <option value="BRL">BRL</option>
+            </select>
+          </div>
+        </div>
+        <div class="form-group">
+          <label class="form-label">NOTE</label>
+          <input class="form-input" name="description" placeholder="What was this for?">
+        </div>
+        <button type="submit" class="btn btn-primary btn-block">LOG EXPENSE</button>
+      </form>
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="card-header"><h2>+ UPLOAD RECEIPT</h2></div>
+    <div class="card-body">
+      <form id="receiptForm">
+        <div class="form-row">
+          <div class="form-group">
+            <label class="form-label">VENDOR</label>
+            <input class="form-input" name="vendor" required placeholder="Amazon">
+          </div>
+          <div class="form-group">
+            <label class="form-label">AMOUNT</label>
+            <input class="form-input" name="amount" type="number" step="0.01" required placeholder="0.00">
+          </div>
+        </div>
+        <div class="form-row">
+          <div class="form-group">
+            <label class="form-label">CATEGORY</label>
+            <select class="form-select" name="category">
+              <option>Office</option><option>Meals & Entertainment</option><option>Transportation</option>
+              <option>Software</option><option>Rent</option><option>Supplies</option><option>Other</option>
+            </select>
+          </div>
+          <div class="form-group">
+            <label class="form-label">CURRENCY</label>
+            <select class="form-select" name="currency">
+              <option value="USD">USD</option><option value="EUR">EUR</option><option value="GBP">GBP</option>
+              <option value="JPY">JPY</option><option value="CAD">CAD</option><option value="AUD">AUD</option>
+              <option value="CHF">CHF</option><option value="INR">INR</option><option value="MXN">MXN</option>
+              <option value="BRL">BRL</option>
+            </select>
+          </div>
+        </div>
+        <div class="upload-zone" id="dropArea">
+          <div class="upload-zone-icon">📄</div>
+          <p id="dropText">DROP FILE OR CLICK</p>
+          <small>PNG / JPG / PDF ≤ 10MB</small>
+          <input type="file" name="receipt" accept="image/*,.pdf" style="display:none" id="fileInput">
+        </div>
+        <input type="hidden" name="notes" id="receiptNotes">
+        <button type="submit" class="btn btn-primary btn-block">UPLOAD</button>
+      </form>
+    </div>
+  </div>
+
+  <div class="card" style="grid-column:1/-1">
+    <div class="card-header">
+      <h2>ALL EXPENSES</h2>
+      <span class="filter-count" id="expenseCount"></span>
+    </div>
+    <div class="card-body" style="padding-bottom:12px">
+      <div class="filters">
+        <input class="form-input" id="filterVendor" placeholder="VENDOR">
+        <select class="form-select" id="filterCategory">
+          <option value="">ALL</option>
+          <option>Office</option><option>Meals & Entertainment</option><option>Transportation</option>
+          <option>Software</option><option>Rent</option><option>Supplies</option><option>Other</option>
+        </select>
+        <input class="form-input" type="date" id="filterStart" style="max-width:140px">
+        <input class="form-input" type="date" id="filterEnd" style="max-width:140px">
+        <button class="btn btn-primary btn-sm" id="applyFilters">FILTER</button>
+        <button class="btn btn-ghost btn-sm" id="clearFilters">X</button>
+      </div>
+    </div>
+    <div class="table-wrap" id="expensesTable">
+      <div class="empty-state">
+        <div class="empty-state-icon">∅</div>
+        <h3>NO DATA</h3>
+        <p>Log an expense or upload a receipt.</p>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="toast-container" id="toastContainer"></div>
+
+<script>
+const API = '';
+let expenses = [];
+function tc(c) { return ({'Meals & Entertainment':'tag-meals','Transportation':'tag-transport','Software':'tag-software','Rent':'tag-rent','Supplies':'tag-supplies','Office':'tag-office'})[c]||'tag-other'; }
+function st(m,t='success'){const c=document.getElementById('toastContainer'),o=document.createElement('div');o.className=`toast toast-${t}`;o.innerHTML=`<span>${t==='success'?'◆':'▲'}</span> ${m}`;c.appendChild(o);setTimeout(()=>{o.style.opacity='0';o.style.transition='opacity .3s';setTimeout(()=>o.remove(),300)},3500);}
+async function api(p,o={}){const h={...o.headers,'Accept':'application/json'};if(o.body&&typeof o.body==='string')h['Content-Type']='application/json';const r=await fetch(API+p,{...o,headers:h});if(!r.ok){const e=await r.json().catch(()=>({error:r.statusText}));throw new Error(e.error)}return r.status===204?null:r.json()}
+function fmt(n){return '$'+Number(n).toFixed(2)}
+const CI={'Office':'💼','Meals & Entertainment':'🍽️','Transportation':'🚗','Software':'💻','Rent':'🏠','Supplies':'📦','Other':'📌'};
+
+function renderStats(){
+  const t=expenses.reduce((s,e)=>s+e.amount_usd,0),c={};
+  for(const e of expenses)c[e.category]=(c[e.category]||0)+e.amount_usd;
+  const s=Object.entries(c).sort((a,b)=>b[1]-a[1]),tc=s[0],wr=expenses.filter(e=>e.receipt?.filename).length;
+  document.getElementById('stats').innerHTML=[
+    {i:'💰',l:'TOTAL',v:fmt(t),sub:`${expenses.length} entries`,c:'#ec4899'},
+    {i:'◆',l:'ENTRIES',v:expenses.length,sub:`${wr} with receipts`,c:'#a855f7'},
+    {i:'■',l:'TOP CAT',v:tc?tc[0]:'—',sub:tc?fmt(tc[1]):'',c:'#fbbf24'},
+    {i:'●',l:'RECEIPTS',v:wr,sub:`${expenses.length?Math.round(wr/expenses.length*100):0}%`,c:'#34d399'},
+  ].map(s=>`<div class="stat-card"><div class="stat-card-glow"></div><span class="stat-icon">${s.i}</span><div class="stat-label">${s.l}</div><div class="stat-value" style="color:${s.c}">${s.v}</div><div class="stat-sub">${s.sub}</div></div>`).join('');
+}
+
+function renderTable(){
+  const v=document.getElementById('filterVendor').value.toLowerCase(),cat=document.getElementById('filterCategory').value,st=document.getElementById('filterStart').value,en=document.getElementById('filterEnd').value;
+  let f=expenses;if(v)f=f.filter(e=>e.vendor.toLowerCase().includes(v));if(cat)f=f.filter(e=>e.category===cat);if(st)f=f.filter(e=>e.date>=st);if(en)f=f.filter(e=>e.date<=en);
+  const el=document.getElementById('expensesTable');document.getElementById('expenseCount').textContent=`${f.length}/${expenses.length}`;
+  if(!f.length){el.innerHTML=`<div class="empty-state"><div class="empty-state-icon">◌</div><h3>NOTHING</h3><p>Try different filters.</p></div>`;renderStats();return;}
+  el.innerHTML=`<table><thead><tr><th>DATE</th><th>VENDOR</th><th>NOTE</th><th>CAT</th><th style="text-align:right">AMT</th><th style="text-align:right">USD</th><th></th></tr></thead><tbody>${
+    f.map(e=>`<tr><td style="color:var(--text-dim);font-size:12px">${e.date}</td><td><span class="vendor-cell">${e.vendor}</span></td>
+    <td><span class="desc-cell">${e.description||'—'}${e.receipt?.filename?' <span style="opacity:.4">◆</span>':''}</span></td>
+    <td><span class="tag ${tc(e.category)}">${e.category}</span></td>
+    <td class="amount-cell">${e.currency} ${e.amount.toFixed(2)}</td>
+    <td class="amount-cell">${fmt(e.amount_usd)}${e.exchange_rate?`<br><span class="amount-usd">×${e.exchange_rate}</span>`:''}</td>
+    <td><button class="btn-icon" onclick="de('${e.id}')" title="DELETE">✕</button></td></tr>`).join('')}</tbody></table>`;
+  renderStats();
+}
+
+async function load(){try{expenses=await api('/expenses')}catch{expenses=[]}renderTable()}
+async function de(id){await api('/expenses/'+id,{method:'DELETE'});st('Deleted');load()}
+
+document.getElementById('expenseForm').addEventListener('submit',async e=>{e.preventDefault();const fd=new FormData(e.target),b=Object.fromEntries(fd);b.amount=parseFloat(b.amount);try{await api('/expenses',{method:'POST',body:JSON.stringify(b),headers:{'Content-Type':'application/json'}});st(`${fmt(b.amount)} @ ${b.vendor}`);e.target.reset();load()}catch(err){st(err.message,'error')}});
+
+document.getElementById('receiptForm').addEventListener('submit',async e=>{e.preventDefault();const fd=new FormData(e.target);if(!fd.get('receipt').name){st('Select a file','error');return}try{const r=await fetch(API+'/receipts',{method:'POST',body:fd});if(!r.ok){const err=await r.json().catch(()=>({error:r.statusText}));throw new Error(err.error)}st('Receipt uploaded');e.target.reset();document.getElementById('dropText').textContent='DROP FILE OR CLICK';load()}catch(err){st(err.message,'error')}});
+
+document.getElementById('dropArea').addEventListener('click',()=>document.getElementById('fileInput').click());
+document.getElementById('fileInput').addEventListener('change',()=>{const f=document.getElementById('fileInput').files[0];document.getElementById('dropText').textContent=f?`📄 ${f.name}`:'DROP FILE OR CLICK'});
+document.getElementById('dropArea').addEventListener('dragover',e=>{e.preventDefault();e.currentTarget.classList.add('dragover')});
+document.getElementById('dropArea').addEventListener('dragleave',e=>{e.preventDefault();e.currentTarget.classList.remove('dragover')});
+document.getElementById('dropArea').addEventListener('drop',e=>{e.preventDefault();e.currentTarget.classList.remove('dragover');const f=e.dataTransfer.files[0];if(f){document.getElementById('fileInput').files=e.dataTransfer.files;document.getElementById('dropText').textContent=`📄 ${f.name}`}});
+
+document.getElementById('applyFilters').addEventListener('click',renderTable);
+document.getElementById('clearFilters').addEventListener('click',()=>{document.getElementById('filterVendor').value='';document.getElementById('filterCategory').value='';document.getElementById('filterStart').value='';document.getElementById('filterEnd').value='';renderTable()});
+document.getElementById('exportBtn').addEventListener('click',()=>{const p=new URLSearchParams(),cat=document.getElementById('filterCategory').value;if(cat)p.set('category',cat);window.open(API+'/reports/export?'+p.toString())});
+
+load();
+</script>
+</body>
+</html>
