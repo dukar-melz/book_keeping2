@@ -5,6 +5,13 @@ export function supabaseConfigured(): boolean {
   return Boolean(SUPA_URL && SUPA_KEY);
 }
 
+/** Project root, tolerant of the URL being pasted with a /rest or /rest/v1
+ * suffix — duplicating that segment is what makes PostgREST answer
+ * PGRST125 "Invalid path specified in request URL". */
+function baseUrl(): string {
+  return SUPA_URL.trim().replace(/\/+$/, '').replace(/\/rest(\/v\d+)?$/i, '');
+}
+
 function headers(extra?: Record<string, string>): Record<string, string> {
   return {
     apikey: SUPA_KEY,
@@ -15,7 +22,7 @@ function headers(extra?: Record<string, string>): Record<string, string> {
 }
 
 async function request<T>(path: string, init: RequestInit = {}): Promise<T> {
-  const res = await fetch(`${SUPA_URL.replace(/\/$/, '')}${path}`, {
+  const res = await fetch(`${baseUrl()}${path}`, {
     ...init,
     headers: headers(init.headers as Record<string, string> | undefined),
   });
@@ -31,16 +38,19 @@ async function request<T>(path: string, init: RequestInit = {}): Promise<T> {
 export async function probe(): Promise<{
   reachable: boolean;
   project: string;
+  apiBase: string;
   tables: Record<string, string>;
   error?: string;
 }> {
-  const project = (() => {
-    try {
-      return new URL(SUPA_URL).hostname.split('.')[0] ?? '';
-    } catch {
-      return '';
-    }
-  })();
+  let project = '';
+  let apiBase = baseUrl();
+  try {
+    const parsed = new URL(SUPA_URL);
+    project = parsed.hostname.split('.')[0] ?? '';
+    apiBase = `${parsed.origin}${baseUrl().slice(parsed.origin.length)}`;
+  } catch {
+    /* leave the raw-derived value */
+  }
 
   const tables: Record<string, string> = {};
   for (const table of ['expenses', 'facts']) {
@@ -56,6 +66,7 @@ export async function probe(): Promise<{
   return {
     reachable,
     project,
+    apiBase,
     tables,
     error: reachable ? undefined : 'no expected table is queryable',
   };
@@ -106,7 +117,7 @@ export async function uploadToBucket(
   contentType: string
 ): Promise<void> {
   const res = await fetch(
-    `${SUPA_URL.replace(/\/$/, '')}/storage/v1/object/${bucket}/${path}`,
+    `${baseUrl()}/storage/v1/object/${bucket}/${path}`,
     {
       method: 'POST',
       headers: {
