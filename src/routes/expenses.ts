@@ -12,6 +12,12 @@ function idParam(req: Request): string {
   return Array.isArray(id) ? (id[0] ?? '') : (id ?? '');
 }
 
+/** A currency-only patch still needs the amount from the stored row. */
+async function currentCurrency(id: string): Promise<string | undefined> {
+  const existing = await getById(id);
+  return existing?.currency;
+}
+
 router.get('/', async (req: Request, res: Response, next: NextFunction) => {
   try {
     const filter: ExpenseFilter = {};
@@ -59,7 +65,28 @@ router.post('/', async (req: Request, res: Response, next: NextFunction) => {
 
 router.patch('/:id', async (req: Request, res: Response, next: NextFunction) => {
   try {
-    const expense = await update(idParam(req), req.body);
+    const patch: Record<string, unknown> = { ...req.body };
+
+    // Reports total amount_usd, so editing amount or currency has to refresh
+    // the conversion. Otherwise the edit saves fine and every total silently
+    // keeps the old figure.
+    const touchesMoney = patch.amount != null || patch.currency != null;
+    if (touchesMoney && patch.amount_usd == null) {
+      const amount = patch.amount != null ? Number(patch.amount) : undefined;
+      const currency =
+        (patch.currency as string | undefined) ??
+        (await currentCurrency(idParam(req))) ??
+        'USD';
+      if (amount != null && !Number.isNaN(amount)) {
+        const { amount_usd, rate } = convertToUsd(amount, currency);
+        patch.amount = amount;
+        patch.amount_usd = amount_usd;
+        patch.exchange_rate = rate;
+        patch.currency = currency;
+      }
+    }
+
+    const expense = await update(idParam(req), patch);
     if (!expense) throw new AppError(404, 'Expense not found');
     res.json(expense);
   } catch (err) {
