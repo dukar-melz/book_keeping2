@@ -1,6 +1,7 @@
 import { Router } from 'express';
 import type { Request, Response, NextFunction } from 'express';
 import { getAll } from '../services/expense-store.js';
+import { AppError } from '../middleware/error.js';
 import type { ExpenseFilter } from '../types/expense.js';
 
 const router = Router();
@@ -64,7 +65,7 @@ router.get('/chat-log', async (req: Request, res: Response, next: NextFunction) 
   try {
     const { text } = req.query;
     if (!text || typeof text !== 'string') {
-      throw new Error('text query parameter is required');
+      throw new AppError(400, 'text query parameter is required');
     }
 
     const pattern = /(?:logged?|spent?|paid?|bought?|purchased?)\s+(?:USD\s+)?\$?([\d,.]+)\s+(?:at|for|on|to)\s+(.+?)(?:\s+(?:for|on|at)\s+(.+))?$/i;
